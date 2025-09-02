@@ -1,0 +1,204 @@
+{
+  "info": {
+    "name": "QIWI Payout API Tests",
+    "_postman_id": "12345",
+    "description": "Тесты по документации QIWI Payout API (структурировано по папкам, включая негативные сценарии)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "authentication",
+      "item": [
+        {
+          "name": "authenticate",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Auth OK: Response format is correct', function () {",
+                  "    pm.response.to.have.jsonBody();",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "unauthorized",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer invalid_token" }],
+            "url": "{{base_url}}/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unauthorized returns 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "balance",
+      "item": [
+        {
+          "name": "get",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/balance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Balance is greater than 0', function () {",
+                  "    const balance = pm.response.json().balance.amount;",
+                  "    pm.expect(balance).to.be.at.least(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "not_found",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "https://api.qiwi.com/payout/v1/persons/0000000000/balance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Account not found returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "payment",
+      "item": [
+        {
+          "name": "create",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"test_payment_1\",\n  \"sum\": {\"amount\": 1, \"currency\": \"RUB\"},\n  \"paymentMethod\": {\"type\": \"Account\", \"accountId\": \"643\"},\n  \"fields\": {\"account\": \"79001234567\"}\n}"
+            },
+            "url": "{{base_url}}/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment created successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "execute",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/payments/test_payment_1/execute"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment executed successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql('SUCCESS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "unauthorized",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer invalid_token" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"id\": \"unauth_payment\" }"
+            },
+            "url": "{{base_url}}/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unauthorized returns 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "forbidden",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"forbidden_payment\",\n  \"sum\": {\"amount\": 10, \"currency\": \"RUB\"},\n  \"paymentMethod\": {\"type\": \"Account\", \"accountId\": \"643\"},\n  \"fields\": {\"account\": \"79999999999\"}\n}"
+            },
+            "url": "https://api.qiwi.com/payout/v1/persons/9999999999/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Forbidden returns 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "https://api.qiwi.com/payout/v1/persons/{account}" },
+    { "key": "token", "value": "TOKEN" }
+  ]
+}
+
