@@ -2,7 +2,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from config import TOKEN, BASE_URL, validate_config
-from qiwi_api_client import QiwiApiClient
+from infra.qiwi_api_client import QiwiApiClient
 
 
 validate_config()

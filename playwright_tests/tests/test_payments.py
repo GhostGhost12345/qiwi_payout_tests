@@ -1,5 +1,6 @@
 import pytest
-from config import ACCOUNT
+from config import ACCOUNT, BASE_URL
+from infra.qiwi_api_client import QiwiApiClient
 
 
 def test_creates_payment(api_client):
@@ -10,7 +11,6 @@ def test_creates_payment(api_client):
         "fields": {"account": ACCOUNT},
     }
     response = api_client.create_payment(99, payload)
-    print("RAW CREATE PAYMENT:", response.text())
     assert response.status in (200, 400)
     data = response.json()
     assert "transaction" in data or "errorCode" in data
@@ -40,27 +40,25 @@ def test_gets_bad_request_error_on_incorrect_create_payment_request(
     api_client, payload, expected_status
 ):
     response = api_client.create_payment(99, payload)
-    print("RAW NEGATIVE:", response.text())
     assert response.status == expected_status
     data = response.json()
     assert "errorCode" in data or "message" in data
 
 
-@pytest.mark.parametrize(
-    "token, expected_status",
-    [
-        ("invalid_token", 401),
-    ],
-)
-def test_payment_unauthorized(playwright_context, token, expected_status):
-    from qiwi_api_client import QiwiApiClient
-    from config import BASE_URL
-
-    client = QiwiApiClient(playwright_context, token, BASE_URL)
+def test_payment_unauthorized(playwright_context):
+    client = QiwiApiClient(playwright_context, "invalid_token", BASE_URL)
     response = client.create_payment(99, {"id": "unauth_test"})
-    print("RAW 401:", response.text())
-    assert response.status == expected_status
+    assert response.status == 401
     client.dispose()
+
+
+def test_payment_forbidden(playwright_context, TOKEN):
+    fake_base_url = "https://api.qiwi.com/payout/v1/persons/9999999999"
+    client = QiwiApiClient(playwright_context, TOKEN, fake_base_url)
+    response = client.create_payment(99, {"id": "forbidden_test"})
+    assert response.status == 403
+    client.dispose()
+
 
 
 
